@@ -1,5 +1,6 @@
 package com.revature.project_0
 
 object Main extends App {
-  println("Hello, World!")
+  val db = new DatabaseUtil()
+  db.getConnection()
 }
