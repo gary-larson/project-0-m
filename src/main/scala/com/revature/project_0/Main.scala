@@ -2,5 +2,6 @@ package com.revature.project_0
 
 object Main extends App {
   val db = new DatabaseUtil()
-  db.getConnection()
+  val conn = db.getConnection()
+  println(db.disconnect(conn.get))
 }
