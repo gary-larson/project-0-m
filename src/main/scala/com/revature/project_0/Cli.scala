@@ -73,8 +73,9 @@ class Cli {
 
   def setupDatabase(): Unit = {
     try {
-      println(FileUtil.getTextContent("states.json" + "").substring(0, 100))
-      
+      val stateString = FileUtil.getTextContent("states.json")
+      val states = JSONUtil.getStateList(stateString)
+      println(states.get)
     } catch {
       //inside of the catch block, we write cases for each Exception we want to catch
       // a case for Exception will catch all Exceptions

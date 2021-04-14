@@ -31,6 +31,9 @@ libraryDependencies += "org.postgresql" % "postgresql" % "42.2.19"
 // https://mvnrepository.com/artifact/com.typesafe.play/play-json
 libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.2"
 
+// https://mvnrepository.com/artifact/io.argonaut/argonaut-scalaz
+libraryDependencies += "io.argonaut" %% "argonaut-scalaz" % "6.3.3"
+
 
 // Here, `libraryDependencies` is a set of dependencies, and by using `+=`,
 // we're adding the scala-parser-combinators dependency to the set of dependencies
