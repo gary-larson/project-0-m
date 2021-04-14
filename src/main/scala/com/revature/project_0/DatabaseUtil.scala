@@ -7,9 +7,9 @@ import java.sql.SQLException
 class DatabaseUtil {
 
     def getConnection(): Option[Connection] = {
-        val connectString = "jdbc:postgresql://localhost:5432/covid"
-        val user = "coviduser"
-        val password = "password"
+        val connectString = "jdbc:postgresql://localhost:5433/covid"
+        val user = "postgres"
+        val password = "postgres"
         try {
             val conn = DriverManager.getConnection(connectString, user, password)
             println("Connection successful")
