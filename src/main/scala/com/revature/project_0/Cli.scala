@@ -14,6 +14,26 @@ class Cli {
   // we're going to extract commands and argument(s) from user input
   val commandArgPattern: Regex = "(\\w+)\\s*(.*)".r
 
+  def run(): Unit = {
+    val dbUtil = new DatabaseUtil()
+    val conn = dbUtil.getConnection()
+    val haveTables = dbUtil.checkTables(conn.get)
+    if (!haveTables) {
+      val stateString = FileUtil.getTextContent("states.json")
+      val stateDataMaybe = JSONUtil.getStateList(stateString)
+      stateDataMaybe match {
+        case Some(stateDataList) => {
+          if (!dbUtil.createTables(conn.get, stateDataList)) {
+            println("Could not complete table creation and data insertion!!")
+            return
+          }
+        }
+        case None => println("Could not retrieve data for tables!!")
+      }
+    }
+    println("Tables and data exist")
+  }
+
   /** runs the main menu, on a loop
     */
   def menu(): Unit = {
@@ -75,7 +95,9 @@ class Cli {
     try {
       val stateString = FileUtil.getTextContent("states.json")
       val states = JSONUtil.getStateList(stateString)
-      println(states.get)
+      val dbUtil = new DatabaseUtil()
+      val conn = dbUtil.getConnection()
+      dbUtil.createTables(conn.get, states.get)
     } catch {
       //inside of the catch block, we write cases for each Exception we want to catch
       // a case for Exception will catch all Exceptions
