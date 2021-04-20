@@ -10,6 +10,8 @@ import scala.collection.mutable.Map
 class Cli {
 
   def run(): Unit = {
+
+    
     
     Futures.initialSetup()
     
