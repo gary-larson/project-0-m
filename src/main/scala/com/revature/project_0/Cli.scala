@@ -9,71 +9,54 @@ import scala.collection.mutable.Map
   */
 class Cli {
 
-    //I'm going to use a little regex to make our lives easier
-  // good to look into!
-  // we're going to extract commands and argument(s) from user input
-  val commandArgPattern: Regex = "(\\w+)\\s*(.*)".r
-
   def run(): Unit = {
-    val dbUtil = new DatabaseUtil()
-    val conn = dbUtil.getConnection()
-    val haveTables = dbUtil.checkTables(conn.get)
-    if (!haveTables) {
-      val stateString = FileUtil.getTextContent("states.json")
-      val stateDataMaybe = JSONUtil.getStateList(stateString)
-      stateDataMaybe match {
-        case Some(stateDataList) => {
-          if (!dbUtil.createTables(conn.get, stateDataList)) {
-            println("Could not complete table creation and data insertion!!")
-            return
-          }
-        }
-        case None => println("Could not retrieve data for tables!!")
-      }
-    }
-    println("Tables and data exist")
+    
+    Futures.initialSetup()
+    
+    Thread.sleep(1000)
+    // TODO make users menu loop
   }
 
-  /** runs the main menu, on a loop
-    */
-  def menu(): Unit = {
-    printWelcome()
-    var continueMenuLoop = true
-    while (continueMenuLoop) {
-      printMenuOptions()
-      //we can get user input via StdIn.  I'm going to grab a line at a time:
-      // this is blocking, so program flow will not continue until input is received
-      var input = StdIn.readLine()
-      input match {
-        case commandArgPattern(cmd, arg) if cmd == "echo" => {
-          println(arg)
-        }
-        // case commandArgPattern(cmd, arg) if cmd == "getfiles" => {
-        //   FileUtil.getTopLevelFilenames().foreach(println)
-        // }
-        case commandArgPattern(cmd, arg) if cmd == "setup" => {
-          setupDatabase()
-        }
-        // case commandArgPattern(cmd, arg) if cmd == "wordcount" => {
-        //   wordcount(arg)
-        // }
-        case commandArgPattern(cmd, arg) if cmd == "exit" => {
-          continueMenuLoop = false
-        }
-        case commandArgPattern(cmd, arg) => {
-          println(
-            s"Parsed command $cmd with args $arg did not correspond to an option"
-          )
-        }
-        case _ => {
-          //default case if no other cases are matched
-          println("Failed to parse command.")
-        }
-      }
+  // /** runs the main menu, on a loop
+  //   */
+  // def menu(): Unit = {
+  //   printWelcome()
+  //   var continueMenuLoop = true
+  //   while (continueMenuLoop) {
+  //     printMenuOptions()
+  //     //we can get user input via StdIn.  I'm going to grab a line at a time:
+  //     // this is blocking, so program flow will not continue until input is received
+  //     var input = StdIn.readLine()
+  //     input match {
+  //       case commandArgPattern(cmd, arg) if cmd == "echo" => {
+  //         println(arg)
+  //       }
+  //       // case commandArgPattern(cmd, arg) if cmd == "getfiles" => {
+  //       //   FileUtil.getTopLevelFilenames().foreach(println)
+  //       // }
+  //       case commandArgPattern(cmd, arg) if cmd == "setup" => {
+  //         setupDatabase()
+  //       }
+  //       // case commandArgPattern(cmd, arg) if cmd == "wordcount" => {
+  //       //   wordcount(arg)
+  //       // }
+  //       case commandArgPattern(cmd, arg) if cmd == "exit" => {
+  //         continueMenuLoop = false
+  //       }
+  //       case commandArgPattern(cmd, arg) => {
+  //         println(
+  //           s"Parsed command $cmd with args $arg did not correspond to an option"
+  //         )
+  //       }
+  //       case _ => {
+  //         //default case if no other cases are matched
+  //         println("Failed to parse command.")
+  //       }
+  //     }
 
-    }
+  //   }
 
-  }
+  // }
 
   def printWelcome(): Unit = {
     println("Welcome to WC CLI!")

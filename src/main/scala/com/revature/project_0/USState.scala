@@ -14,4 +14,8 @@ case class USState(var state: String, var population: Long, var populationUSARan
     var pcOfUSARecovered: Double, var pcOfUSATotalCases : Double,
     var totalCases: Long, var newCases: Long, var totalDeaths: Long, var newDeaths: Long, 
     var totalActiveCases: Long
-    ) {  }
+    ) {  
+        def this() = {
+            this("", 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0, 0, 0, 0)
+        }
+    }
