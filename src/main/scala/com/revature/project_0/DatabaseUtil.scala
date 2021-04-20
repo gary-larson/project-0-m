@@ -245,7 +245,8 @@ class DatabaseUtil {
         }
         // create prepared statement to create users table
         val statement = conn.prepareStatement("CREATE TABLE users (user_id serial " +
-            "primary key, name text UNIQUE, last_visited date Default now(), state_offset int);")
+            "primary key, name text UNIQUE, last_visited date DEFAULT now(), " +
+            "state_offset int DEFAULT 0, percent_offset int DEFAULT 0);")
         // execute statement
         statement.execute()
         // close statement

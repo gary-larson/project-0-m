@@ -22,7 +22,13 @@ object Futures {
     testTablesFuture.onComplete((result) => {
       result match{
         case Success(value) => value
-        case Failure(exception) => println(s"Something went wrong setting up tables ${exception.getMessage()}")
+        case Failure(exception) => {
+          println(s"Error! Message: ${exception.getMessage()}")
+          if (exception.getMessage().contains("TCP/IP connections.")) {
+            println("Please correct and try again!")
+            System.exit(0)
+          }
+        }
       }
     })
   }
