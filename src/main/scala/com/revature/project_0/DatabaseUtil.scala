@@ -245,7 +245,7 @@ class DatabaseUtil {
         }
         // create prepared statement to create users table
         val statement = conn.prepareStatement("CREATE TABLE users (user_id serial " +
-            "primary key, name text UNIQUE, last_visited date DEFAULT now(), " +
+            "primary key, name text UNIQUE, last_updated date DEFAULT now(), " +
             "state_offset int DEFAULT 0, percent_offset int DEFAULT 0);")
         // execute statement
         statement.execute()
@@ -560,7 +560,7 @@ class DatabaseUtil {
           conn = getConnection().get
       }
       // create prepared statement to get state id from states table
-      val statement = conn.prepareStatement("SELECT name, last_visited, " +
+      val statement = conn.prepareStatement("SELECT name, last_updated, " +
         "state_offset, percent_offset FROM users WHERE name = ?;")
       // set state name parameter
       statement.setString(1, name)
@@ -571,10 +571,10 @@ class DatabaseUtil {
       if (results.next()) {
         // get results
         val name = results.getString("name")
-        val lastVisited = results.getDate("last_visited")
+        val lastUpdated = results.getDate("last_updated")
         val stateOffset = results.getInt("state_offset")
         val percentOffset = results.getInt("percent_offset")
-        val user = User(name, lastVisited, stateOffset, percentOffset)
+        val user = User(name, lastUpdated, stateOffset, percentOffset)
         userOption = Some(user)
       }
       userOption
@@ -597,7 +597,7 @@ class DatabaseUtil {
         }
         // create prepared statement to update user's data in users table
         val statement = conn.prepareStatement("UPDATE users SET state_offset = ?, " +
-          "percent_offset = ? WHERE name = ?;")
+          "percent_offset = ?, last_updated = default WHERE name = ?;")
         // set user's basic query offset parameter
         statement.setInt(1, stateOffset)
         // set user's query percent offset parameter
