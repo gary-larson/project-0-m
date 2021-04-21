@@ -343,7 +343,8 @@ class DatabaseUtil {
       * @param user name
       * @param offset of query
       */
-    def addUsersData(connIn: Connection, user:String, offset: Int = 0): Unit = {
+    def addUserData(connIn: Connection, user: String, stateOffset: Int = 0, 
+      percentOffset: Int = 0): Unit = {
         // move connection to a mutable variable
         var conn = connIn;
         if (conn.isClosed()) {
@@ -352,11 +353,14 @@ class DatabaseUtil {
         }
         // create prepared statement to insert user data to users table
         val statement = conn.prepareStatement("INSERT INTO users VALUES(DEFAULT, ?, " +
-            "DEFAULT, ?);")
+            "DEFAULT, ?, ?);")
         // add user's name parameter
+        println(user)
         statement.setString(1, user)
-        // add query offset parameter
-        statement.setInt(2, offset)
+        // add query state offset parameter
+        statement.setInt(2, stateOffset)
+        // add percent offset parameter
+        statement.setInt(3, percentOffset)
         // execute statement
         statement.execute()
         // close statement
@@ -395,6 +399,35 @@ class DatabaseUtil {
     }
 
     /**
+      * Method to get state id from the states table
+      *
+      * @param connIn to database
+      * @param state to get id for
+      * @return id
+      */
+    def getStateCount(connIn: Connection): Option[Int] = {
+        // create option variable
+        var count: Option[Int] = None
+        // move connection to a mutable variable
+        var conn = connIn
+        if (conn.isClosed()) {
+            // get connection
+            conn = getConnection().get
+        }
+        // create prepared statement to get state id from states table
+        val statement = conn.prepareStatement("SELECT COUNT(state_id) AS count FROM states;")
+        // execute query
+        statement.executeQuery()
+        // get result set
+        val results = statement.getResultSet()
+        if (results.next()) {
+            // get result
+            count = Some(results.getInt("count"))
+        }
+        count
+    }
+
+    /**
       * Method to get basic state data from database
       *
       * @param connIn to database
@@ -402,7 +435,7 @@ class DatabaseUtil {
       * @param stateLimit the number of results
       * @return array buffer of us states
       */
-    def getStateMap(connIn: Connection, stateOffset: Int, stateLimit: Int): 
+    def getStateArray(connIn: Connection, stateOffset: Int, stateLimit: Int): 
         Option[ArrayBuffer[USState]] = {
         // create option variable
         var state: Option[ArrayBuffer[USState]] = None
@@ -416,6 +449,7 @@ class DatabaseUtil {
         // create prepared statement to get state id from states table
         val statement = conn.prepareStatement("SELECT state, population, populationUSARank, " +
             "totalCases, newCases, totalDeaths, newDeaths, totalActiveCases FROM states " +
+            "INNER JOIN state_info ON states.state_id = state_info.state_id  ORDER BY state " +
             "LIMIT ? OFFSET ?;")
         // add limit parameter
         statement.setInt(1, stateLimit)
@@ -425,7 +459,7 @@ class DatabaseUtil {
         statement.executeQuery()
         // get result set
         val results = statement.getResultSet()
-        if (results.next()) {
+        while (results.next()) {
             // get result
             val newState = new USState()
             // get state
@@ -460,7 +494,7 @@ class DatabaseUtil {
       * @param percentLimit the number of results
       * @return array buffer of us states
       */
-    def getPercentStateMap(connIn: Connection, percentOffset: Int, percentLimit: Int): 
+    def getPercentStateArray(connIn: Connection, percentOffset: Int, percentLimit: Int): 
         Option[ArrayBuffer[USState]] = {
         // create option variable
         var state: Option[ArrayBuffer[USState]] = None
@@ -474,7 +508,8 @@ class DatabaseUtil {
         // create prepared statement to get state id from states table
         val statement = conn.prepareStatement("SELECT state, pcOfUSAPopulation, " +
             "mortalityRate, pcOfUSADeaths, pcOfUSAActiveCases, pcOfUSARecovered, " +
-            "pcOfUSATotalCases FROM states LIMIT ? OFFSET ?;")
+            "pcOfUSATotalCases FROM states INNER JOIN state_info ON states.state_id = " +
+            "state_info.state_id  ORDER BY state LIMIT ? OFFSET ?;")
         // add limit parameter
         statement.setInt(1, percentLimit)
         // add offset parameter
@@ -483,7 +518,7 @@ class DatabaseUtil {
         statement.executeQuery()
         // get result set
         val results = statement.getResultSet()
-        if (results.next()) {
+        while (results.next()) {
             // get result
             val newState = new USState()
             // get state
@@ -509,30 +544,70 @@ class DatabaseUtil {
     }
 
     /**
+      * Method to get an option of a user
+      *
+      * @param connIn to database
+      * @param name of user to get
+      * @return option of user
+      */
+    def getUserData(connIn: Connection, name: String): Option[User] = {
+      // create option variable
+      var userOption: Option[User] = None
+      // move connection to a mutable variable
+      var conn = connIn
+      if (conn.isClosed()) {
+          // get connection
+          conn = getConnection().get
+      }
+      // create prepared statement to get state id from states table
+      val statement = conn.prepareStatement("SELECT name, last_visited, " +
+        "state_offset, percent_offset FROM users WHERE name = ?;")
+      // set state name parameter
+      statement.setString(1, name)
+      // execute query
+      statement.executeQuery()
+      // get result set
+      val results = statement.getResultSet()
+      if (results.next()) {
+        // get results
+        val name = results.getString("name")
+        val lastVisited = results.getDate("last_visited")
+        val stateOffset = results.getInt("state_offset")
+        val percentOffset = results.getInt("percent_offset")
+        val user = User(name, lastVisited, stateOffset, percentOffset)
+        userOption = Some(user)
+      }
+      userOption
+    }
+
+    /**
       * Method to update user's data in users table
       *
       * @param connIn to database
       * @param name of user
       * @param offset forQueries
       */
-    def updateUserData(connIn: Connection, name: String, offset: Int): Unit = {
+    def updateUserData(connIn: Connection, name: String, stateOffset: Int, 
+      percentOffset: Int): Unit = {
         // move connection to a mutable variable
         var conn = connIn
         if (conn.isClosed()) {
             // get connection
             conn = getConnection().get
         }
-            // create prepared statement to update user's data in users table
-            val statement = conn.prepareStatement("UPDATE users SET state_offset = ? " +
-              "WHERE name = ?;")
-            // set user's query offset parameter
-            statement.setInt(1, offset)
-            // set user name parameter
-            statement.setString(2, name)
-            // execute statement
-            statement.execute()
-            // close statement
-            statement.close()
+        // create prepared statement to update user's data in users table
+        val statement = conn.prepareStatement("UPDATE users SET state_offset = ?, " +
+          "percent_offset = ? WHERE name = ?;")
+        // set user's basic query offset parameter
+        statement.setInt(1, stateOffset)
+        // set user's query percent offset parameter
+        statement.setInt(2, percentOffset)
+        // set user name parameter
+        statement.setString(3, name)
+        // execute statement
+        statement.execute()
+        // close statement
+        statement.close()
     }
 
     /**
@@ -559,12 +634,12 @@ class DatabaseUtil {
         statement.executeQuery()
         // get result set
         val results = statement.getResultSet()
-        // close statement
-        statement.close()
         if (results.next()) {
             // get result
             isThere = results.getBoolean("EXISTS")
         }
+        // close statement
+        statement.close()
         isThere
     }
 }

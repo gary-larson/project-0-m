@@ -83,3 +83,4 @@ libraryDependencies += "io.argonaut" %% "argonaut-scalaz" % "6.3.3"
 
 // To learn more about multi-project builds, head over to the official sbt
 // documentation at http://www.scala-sbt.org/documentation.html
+scalacOptions += "-deprecation"
