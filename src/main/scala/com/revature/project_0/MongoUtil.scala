@@ -242,7 +242,19 @@ class MongoUtil {
         // wait for results
       Await.ready(updateDoc, Duration.apply(1L, "second")).onComplete {
         case Success(result) => {}
-        case Failure(e) => println("\nUpdate Failure: " + e.toString)
+        case Failure(e) => println(s"\nUpdate Failure: ${e.getMessage()}")
+      }
+   }
+
+   def removeUser(name:String, db: MongoDatabase): Unit = {
+     // get collection
+      val collection = db.getCollection("users")
+      // delete user document
+      val deleteUser = collection.findOneAndDelete(equal("name", name)).toFuture()
+      // wait for results
+      Await.ready(deleteUser, Duration.apply(1L, "second")).onComplete {
+        case Success(result) => {}
+        case Failure(e) => println(s"\nRemove Failure: ${e.getMessage()}")
       }
    }
 }

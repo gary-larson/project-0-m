@@ -41,6 +41,9 @@ class Cli {
     var user = getUserName(db)
     // TODO make users menu loop
     var continueLoop = true
+    if (user.name == "q" || user.name == "Q") {
+      continueLoop = false
+    }
     while (continueLoop) {
       printMainMenu(user.name)
       // read a character from the user
@@ -202,21 +205,29 @@ class Cli {
         case '2' => {
           userOption = createUser(db)
         }
+        case '3' => {
+          deleteUser(db)
+          userOption = Some(User("", "", 0, 0))
+        }
         case 'q' => {
-          System.exit(0)
+          userOption = Some(User("q", "", 0, 0))
         }
         case 'Q' => {
-          System.exit(0)
+          userOption = Some(User("q", "", 0, 0))
         }
         case _ => {
-          println("Entry no valid please enter '1', '2', 'Q' or 'q'")
+          println("Entry no valid please enter '1', '2', '3', 'Q' or 'q'")
         }
       }
       userOption match {
         // process failure
         case None => {println("Try Again")}
         // process success
-        case Some(value) => { repeatMenu = false}
+        case Some(value) => { 
+          if (value.name != "") {
+            repeatMenu = false
+          }
+        }
       }
     }
     userOption.get
@@ -229,7 +240,8 @@ class Cli {
     println()
     println("   *** USER MENU ***")
     println("Enter '1' for an existing user.")
-    println("Enter '2' to create a new user.)")
+    println("Enter '2' to create a new user.")
+    println("Enter '3' to delete a user.")
     println("Enter 'q' or 'Q' to quit program.")
   }
 
@@ -300,6 +312,71 @@ class Cli {
       }
     }
     user
+  }
+
+  /**
+    * Method to get the user
+    *
+    * @return user
+    */
+  def deleteUser(db: MongoDatabase): Unit = {
+    // get collection
+    val collection = db.getCollection("users") 
+    // Declare control variable
+    var nameExists = false
+    var notQuit = true
+    // Declare name variable
+    var name = ""
+    // Declare a database variable
+    val mongoUtil = new MongoUtil()
+    // create final variable
+    var user: Option[User] = None
+    // setup loop
+    while (!nameExists && notQuit) {
+      // get name
+      name = inputName()
+      if (name == "q" || name == "Q") {
+        notQuit = false
+      } else {
+        // check if user exists
+        val checkUser = mongoUtil.getUserData(name, db)
+        checkUser.value match {
+          case Some(result) => {
+            result match {
+              case Success(value) => {
+                if (value == null) {
+                  // name does not exist
+                  println(s"Name: $name does not exist. Please choose another.")
+                } else {
+                  // check for key
+                  if(value.contains("name")) {
+                    // test for match
+                    if (value.getString("name").toLowerCase() == name.toLowerCase()) {
+                      // set control variable and get user
+                      nameExists = true
+                      mongoUtil.removeUser(name, db)
+                    } else {
+                      // name does not exist
+                      println(s"Name: $name does not exist. Please choose another.")
+                    }
+                  } else {
+                    // name does not exist
+                    println(s"Name: $name does not exist. Please choose another.")
+                  }
+                }
+              }
+              // if failure catch exception
+              case Failure(exception) => 
+                println(s"Failure!: ${exception.getMessage()}")
+            }
+            
+          }
+          // if none query never completed
+           case None =>
+            println("\nSomething went wrong Try again!")
+        }
+      }
+    }
   }
 
   /**
