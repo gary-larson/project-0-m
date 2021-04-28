@@ -4,6 +4,18 @@ import scala.io.StdIn
 import scala.util.matching.Regex
 import java.io.FileNotFoundException
 import scala.collection.mutable.Map
+import org.mongodb.scala._
+import org.mongodb.scala.MongoDatabase
+import org.mongodb.scala.MongoCollection
+import org.mongodb.scala.bson.collection.immutable.Document
+import org.mongodb.scala.model.Filters._
+import scala.util.Success
+import scala.util.Failure
+import scala.concurrent.Await
+import scala.concurrent.duration.Duration
+import java.util.concurrent.TimeUnit
+import scala.concurrent.Future
+import scala.util.hashing.Hashing
 
 /** CLI class, used to communicate with the user
   */
@@ -15,84 +27,129 @@ class Cli {
     * Entry point for Cli class
     */
   def run(): Unit = {
-
-    // run initial setup on another thread
-    Futures.initialSetup()
+    // check for data
+    val mongoUtil = new MongoUtil()
+    mongoUtil.initialSetup()
+    // connect to mongo cluster
+    val client = mongoUtil.getConnection()
+    // get database
+    val db = mongoUtil.getDatabase(client)
+       
     
-    var user = getUserName()
+    
+    // get name from user
+    var user = getUserName(db)
     // TODO make users menu loop
     var continueLoop = true
-    // get database and connection
-    val dbUtil = new DatabaseUtil
-    val conn = dbUtil.getConnection()
-    conn match {
-      case Some(value) => {}
-      case None => {
-        println("Could not connect to database. Please correct and try again.")
-        System.exit(1)
-      }
-    }
     while (continueLoop) {
-      printMainMenu()
+      printMainMenu(user.name)
       // read a character from the user
-      val input = StdIn.readChar()
+      val charRead = StdIn.readChar()
       
       // process selection
-      input match {
+      charRead match {
         case '1' => {
-          // TODO print screen of basic data and update user in database
+          // print screen of basic data and update user in database
+          // get state offset
           val stateOffset = user.stateOffset
-          val states = dbUtil.getStateArray(conn.get, stateOffset, screenLimit)
-          states match {
-            case None => {println("Error getting data")}
-            case Some(value) => {
-              println()
-              println("               State  Population Population-Rank Total-Cases New-Cases " +
-                "Total-Deaths New-Deaths Total-Active-Cases")
-              for(state <- value) {
-                println(f"${state.state}%20s ${state.population}%,11d " +
-                  f"${state.populationUSARank}%,15d ${state.totalCases}%,11d " +
-                  f"${state.newCases}%,9d ${state.totalDeaths}%,12d " +
-                  f"${state.newDeaths}%,10d ${state.totalActiveCases}%,18d")
+          // get states from database
+          val states = mongoUtil.getStateSeq(db, stateOffset, screenLimit)
+          // match return value
+          states.value match {
+            // get result
+            case Some(result) => {
+              // match result
+              result match {
+                // in case of success print to console
+                case Success(value) => {
+                  println()
+                  println("               State  Population Population-Rank Total-Cases New-Cases " +
+                    "Total-Deaths New-Deaths Total-Active-Cases")
+                    // loop through sequence
+                  for(document <- value) {
+                    // print each document
+                    println(f"${document.getString("state")}%20s ${document.getLong("population")}%,11d " +
+                      f"${document.getInteger("populationUSARank")}%,15d ${document.getLong("totalCases")}%,11d " +
+                      f"${document.getLong("newCases")}%,9d ${document.getLong("totalDeaths")}%,12d " +
+                      f"${document.getLong("newDeaths")}%,10d ${document.getLong("totalActiveCases")}%,18d")
+                  }
+                }
+                // catch exception
+                case Failure(exception) => println (s"Error!: ${exception.getMessage()}")
               }
             }
+            // if none query never finished
+            case None => println("\nSomething went wrong Try again!")
           }
+          // update user state offset
           user.stateOffset = user.stateOffset + screenLimit
-          val count = dbUtil.getStateCount(conn.get)
-          count match {
-            case None => {}
-            case Some(value) => if (user.stateOffset > value) user.stateOffset = 0
+          // get count of state documents
+          val count = mongoUtil.getStateCount(db)
+          count.value match {
+            case Some(result) => {
+              result match {
+                // failure catch exception
+                case Failure(exception) => {println(s"Error: ${exception.getMessage}")}
+                // for success adjust state offset if needed
+                case Success(value) => if (user.stateOffset > value) user.stateOffset = 0
+              }
+            }
+            case None => println("Something went wrong please try again!")
           }
-          dbUtil.updateUserData(conn.get, user.name, 
-            user.stateOffset, user.percentOffset)
+          // update user in database
+          mongoUtil.updateUserData(user, db)
         }
         case '2' => {
-          // TODO print screen of percent data and update user in database
+          // print screen of percent data and update user in database
           val percentOffset = user.percentOffset
-          val states = dbUtil.getPercentStateArray(conn.get, percentOffset, 
-            screenLimit)
-          states match {
-            case None => {println("Error getting data")}
-            case Some(value) => {
-              println()
-              println("               State Percent-Population Mortality-Rate Percent-Cases " +
-                "Percent-Deaths Percent-Recovered Percent-Active-Cases")
-              for(state <- value) {
-                println(f"${state.state}%20s ${state.pcOfUSAPopulation}%,18.2f " +
-                  f"${state.mortalityRate}%,14.2f ${state.pcOfUSATotalCases}%,13.2f " +
-                  f"${state.pcOfUSADeaths}%,14.2f ${state.pcOfUSARecovered}%,17.2f " +
-                  f"${state.pcOfUSAActiveCases}%,20.2f")
+          // get states percent data
+          val states = mongoUtil.getPercentSeq(db, percentOffset, screenLimit)
+          // mathc value
+          states.value match {
+            // if result process
+            case Some(result) => {
+              // match result
+              result match {
+                // for success print documents to console
+                case Success(value) => {
+                  println()
+                  println("               State Percent-Population Mortality-Rate Percent-Cases " +
+                    "Percent-Deaths Percent-Recovered Percent-Active-Cases")
+                    // loop through state documents
+                  for(document <- value) {
+                    // print state documents
+                    println(f"${document.getString("state")}%20s ${document.getDouble("pcOfUSAPopulation")}%,18.2f " +
+                      f"${document.getDouble("mortalityRate")}%,14.2f ${document.getDouble("pcOfUSATotalCases")}%,13.2f " +
+                      f"${document.getDouble("pcOfUSADeaths")}%,14.2f ${document.getDouble("pcOfUSARecovered")}%,17.2f " +
+                      f"${document.getDouble("pcOfUSAActiveCases")}%,20.2f")
+                  }
+                }
+                // if failure catch exception
+                case Failure(exception) => println (s"Error!: ${exception.getMessage()}")
               }
             }
+            // if none query never completed
+            case None => println("\nSomething went wrong Try again!")
           }
+          // update user's percent offset
           user.percentOffset = user.percentOffset + screenLimit
-          val count = dbUtil.getStateCount(conn.get)
-          count match {
-            case None => {}
-            case Some(value) => if (user.percentOffset > value) user.percentOffset = 0
+          // get count of state documents
+          val count = mongoUtil.getStateCount(db)
+          // get results
+          count.value match {
+            case Some(result) => {
+              result match {
+                // if failure catch exception
+                case Failure(exception) => {println(s"Error: ${exception.getMessage}")}
+                // update percent offset if needed
+                case Success(value) => if (user.percentOffset > value) user.percentOffset = 0
+              }
+            }
+            // if none query never completed
+            case None => println("Something went wrong please try again!")
           }
-          dbUtil.updateUserData(conn.get, user.name, 
-            user.stateOffset, user.percentOffset)
+          // update user in database
+          mongoUtil.updateUserData(user, db)
         }
         case 'q' => {
           continueLoop = false
@@ -102,17 +159,19 @@ class Cli {
         }
         case _ => {
           println("Entry no valid please enter '1', '2', 'Q' or 'q'")
-        }
-      }
+         }
+       }
     }
-    dbUtil.disconnect(conn.get)
+    // close database connection
+    client.close()
   }
 
   /**
     * Method to print main menu
     */
-  def printMainMenu(): Unit = {
+  def printMainMenu(name: String): Unit = {
     println()
+    println(s"Welcome $name")
     println("   *** MAIN MENU ***")
     println("press '1' to print next screen of basic state data")
     println("press '2' to print next screen of percent state data")
@@ -124,7 +183,7 @@ class Cli {
     *
     * @return a user
     */
-  def getUserName(): User = {
+  def getUserName(db: MongoDatabase): User = {
     // Declare control variable
     var repeatMenu = true
     // Create user option
@@ -138,10 +197,10 @@ class Cli {
       // process selection
       input match {
         case '1' => {
-          userOption = getUser()
+          userOption = getUser(db)
         }
         case '2' => {
-          userOption = createUser()
+          userOption = createUser(db)
         }
         case 'q' => {
           System.exit(0)
@@ -179,24 +238,18 @@ class Cli {
     *
     * @return user
     */
-  def getUser(): Option[User] = {
+  def getUser(db: MongoDatabase): Option[User] = {
+    // get collection
+    val collection = db.getCollection("users") 
     // Declare control variable
     var nameExists = false
     var notQuit = true
     // Declare name variable
     var name = ""
     // Declare a database variable
-    val dbUtil = new DatabaseUtil()
-    // get database connection
-    val conn = dbUtil.getConnection()
-    conn match {
-      // if no connection to database terminate program
-      case None => {
-        println("Could not connect to database. Please correct and try again.")
-        System.exit(1)
-      }
-      case Some(value) => {}
-    }
+    val mongoUtil = new MongoUtil()
+    // create final variable
+    var user: Option[User] = None
     // setup loop
     while (!nameExists && notQuit) {
       // get name
@@ -204,22 +257,48 @@ class Cli {
       if (name == "q" || name == "Q") {
         notQuit = false
       } else {
-        // check name
-        if (dbUtil.checkUserName(conn.get, name)) {
-          nameExists = true
-        } else {
-          // print error
-          println(s"Name: $name does not exist. Please choose another.")
-        } 
+        // check if user exists
+        val checkUser = mongoUtil.getUserData(name, db)
+        checkUser.value match {
+          case Some(result) => {
+            result match {
+              case Success(value) => {
+                if (value == null) {
+                  // name does not exist
+                  println(s"Name: $name does not exist. Please choose another.")
+                } else {
+                  // check for key
+                  if(value.contains("name")) {
+                    // test for match
+                    if (value.getString("name").toLowerCase() == name.toLowerCase()) {
+                      // set control variable and get user
+                      nameExists = true
+                      user = Some(User(value.getString("name"), 
+                        value.getString("lastUpdated"), 
+                        value.getInteger("stateOffset"),
+                        value.getInteger("percentOffset")))
+                    } else {
+                      // name does not exist
+                      println(s"Name: $name does not exist. Please choose another.")
+                    }
+                  } else {
+                    // name does not exist
+                    println(s"Name: $name does not exist. Please choose another.")
+                  }
+                }
+              }
+              // if failure catch exception
+              case Failure(exception) => 
+                println(s"Failure!: ${exception.getMessage()}")
+            }
+            
+          }
+          // if none query never completed
+           case None =>
+            println("\nSomething went wrong Try again!")
+        }
       }
     }
-    var user: Option[User] = None
-    if (notQuit) {
-      // get user
-      user = dbUtil.getUserData(conn.get, name)
-    } 
-    // disconnect connection
-    dbUtil.disconnect(conn.get)
     user
   }
 
@@ -228,24 +307,16 @@ class Cli {
     *
     * @return a user
     */
-  def createUser(): Option[User] = {
+  def createUser(db: MongoDatabase): Option[User] = {
+    // get collection
+    val collection = db.getCollection("users") 
     // Declare control variable
     var nameExists = true
     var notQuit = true
     // Declare name variable
     var name = ""
     // Declare a database variable
-    val dbUtil = new DatabaseUtil()
-    // get database connection
-    val conn = dbUtil.getConnection()
-    conn match {
-      // if no connection to database terminate program
-      case Some(value) => {}
-      case None => {
-        println("Could not connect to database. Please correct and try again.")
-        System.exit(1)
-      }
-    }
+    val mongoUtil = new MongoUtil()
     // setup loop
     while (nameExists && notQuit) {
       // get name
@@ -254,24 +325,50 @@ class Cli {
       if (name == "q" || name == "Q") {
         notQuit = false
       } else {
-        // check name
-        if (!dbUtil.checkUserName(conn.get, name)) {
-          nameExists = false
-        } else {
-          // print error
-          println(s"Name: $name does exists. Please choose another.")
+        // check user
+        val checkUser = mongoUtil.getUserData(name, db)
+        checkUser.value match {
+          case Some(result) => {
+            result match {
+              case Success(value) => {
+                if (value == null) {
+                  // name does not exist
+                  nameExists = false
+                } else {
+                  if(value.contains("name")) {
+                    // test name
+                    if (value.getString("name").toLowerCase() == name.toLowerCase()) {
+                      // name exists
+                      println(s"Name: $name does exist. Please choose another.")
+                    } else {
+                      // name does not exist
+                      nameExists = false
+                    }
+                  } else {
+                    // name does not exist
+                    nameExists = false
+                  }
+                }
+              }
+              // if failed catch exception
+              case Failure(exception) => 
+                println(s"Failure!: ${exception.getMessage()}")
+            }
+          }
+          // if none query never completed
+           case None =>
+            println("\nSomething went wrong Try again!")
         }
       }
     }
     var user: Option[User] = None
     if (notQuit) {
       // add user
-      dbUtil.addUserData(conn.get, name)
+      val userTemp = User(name, "", 0, 0)
+      mongoUtil.addUserData(name, db)
       // get user
-      user = dbUtil.getUserData(conn.get, name)
+      user = Some(userTemp)
     }
-    // disconnect connection
-    dbUtil.disconnect(conn.get)
     user
   }
 

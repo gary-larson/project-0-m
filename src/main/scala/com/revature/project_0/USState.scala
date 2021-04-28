@@ -1,10 +1,5 @@
 package com.revature.project_0
 
-
-import scalaz._, Scalaz._
-import argonaut._, Argonaut._
-import ArgonautScalaz._
-
 /**
  * Class for us states
  */ 

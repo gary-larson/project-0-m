@@ -571,7 +571,7 @@ class DatabaseUtil {
       if (results.next()) {
         // get results
         val name = results.getString("name")
-        val lastUpdated = results.getDate("last_updated")
+        val lastUpdated = results.getString("last_updated")
         val stateOffset = results.getInt("state_offset")
         val percentOffset = results.getInt("percent_offset")
         val user = User(name, lastUpdated, stateOffset, percentOffset)

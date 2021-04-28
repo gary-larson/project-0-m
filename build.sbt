@@ -26,14 +26,15 @@ version := "1.0"
 // You can define other libraries as dependencies in your build like this:
 
 libraryDependencies += "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2"
-libraryDependencies += "org.postgresql" % "postgresql" % "42.2.19"
 
-// https://mvnrepository.com/artifact/com.typesafe.play/play-json
-libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.2"
+// https://mvnrepository.com/artifact/org.mongodb.scala/mongo-scala-driver
+libraryDependencies += "org.mongodb.scala" %% "mongo-scala-driver" % "4.2.3"
+
+// https://mvnrepository.com/artifact/org.slf4j/slf4j-api
+libraryDependencies += "org.slf4j" % "slf4j-api" % "1.8.0-beta4"
 
 // https://mvnrepository.com/artifact/io.argonaut/argonaut-scalaz
 libraryDependencies += "io.argonaut" %% "argonaut-scalaz" % "6.3.3"
-
 
 // Here, `libraryDependencies` is a set of dependencies, and by using `+=`,
 // we're adding the scala-parser-combinators dependency to the set of dependencies
